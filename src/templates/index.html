@@ -2,11 +2,33 @@
 
 {% block content %}
   <h1>Welcome to the Dataset Generation Dashboard</h1>
-  <p>Click <a href="/admin">here</a> to go to the admin interface.</p>
-  <p>Current status: {{ status_message }}</p>
+  <h2 class="mb-4">Current Statistics</h2>
 
-  <form method="POST" action="{{ url_for('start_job') }}">
-    <button type="submit" class="btn btn-primary">Start Job</button>
-  </form>
+    <!-- Data Table Placeholder -->
+    <div class="table-responsive">
+      <table class="table table-striped table-bordered table-hover">
+        <thead class="table-dark">
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Last Updated</th>
+            <!-- Add more columns as needed -->
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in stats %}
+          <tr>
+            <td>{{ row.id }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.status }}</td>
+            <td>{{ row.updated_at }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+
 
 {% endblock %}

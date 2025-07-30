@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>Start Jobs</h1>
+  <p>Current status: {{ status_message }}</p>
+
+  <form method="POST" action="{{ url_for('start_job') }}">
+    <button type="submit" class="btn btn-primary">Start Job</button>
+  </form>
+
+{% endblock %}
+
+
+

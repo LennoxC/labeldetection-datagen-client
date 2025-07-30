@@ -6,6 +6,7 @@ from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from tasks import data_processing
 from sqlalchemy.orm import configure_mappers
+from models import TrainingImagesView, ImagePromptsView
 
 sql_user = os.environ["MYSQL_USER"]
 sql_pwd = os.environ["MYSQL_PWD"]
@@ -19,14 +20,13 @@ app.secret_key = key
 
 models.db.init_app(app)
 
-#admin = Admin(app, name='LLM Dashboard', template_mode='bootstrap3')
 admin = Admin(app, name='LLM Dashboard')
 
 configure_mappers()
 admin.add_view(ModelView(models.Models, models.db.session))
 admin.add_view(ModelView(models.Applications, models.db.session))
-admin.add_view(ModelView(models.TrainingImages, models.db.session))
-admin.add_view(ModelView(models.ImagePrompts, models.db.session))
+admin.add_view(TrainingImagesView(models.TrainingImages, models.db.session))
+admin.add_view(ImagePromptsView(models.ImagePrompts, models.db.session))
 admin.add_view(ModelView(models.SystemPrompts, models.db.session))
 
 @app.route("/")
