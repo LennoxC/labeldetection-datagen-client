@@ -1,12 +1,14 @@
 import os
 import models
 import redis
+import pymysql
 from flask import Flask, render_template, redirect, url_for
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from tasks import data_processing
 from sqlalchemy.orm import configure_mappers
 from models import TrainingImagesView, ImagePromptsView
+
 
 sql_user = os.environ["MYSQL_USER"]
 sql_pwd = os.environ["MYSQL_PWD"]
@@ -31,7 +33,41 @@ admin.add_view(ModelView(models.SystemPrompts, models.db.session))
 
 @app.route("/")
 def index():
-    return render_template("index.html", title="Home", status_message="All systems go")
+    redis_client = redis.Redis(host='localhost', port=6379, db=2)
+    connection = pymysql.connect(
+        host="localhost",
+        user=os.environ["MYSQL_USER"],
+        password=os.environ["MYSQL_PWD"],
+        db=os.environ["MYSQL_DB"]
+    )
+    cursor = connection.cursor()
+
+    query = """
+            SELECT COUNT(*)
+            FROM training_images
+                     INNER JOIN applications
+                                ON applications.id = training_images.application_id
+            WHERE applications.name = %s \
+            """
+
+    categories = ['food', 'wine', 'pharma']
+    counts = {}
+
+    for category in categories:
+        cursor.execute(query, (category,))
+        counts[category] = cursor.fetchone()[0]
+
+    return render_template(
+        "index.html",
+        title="Home",
+        food_images=counts['food'],
+        wine_images=counts['wine'],
+        pharma_images=counts['pharma']
+    )
+
+@app.route("/jobs")
+def jobs():
+    return render_template("jobs.html")
 
 @app.route("/start-job", methods=["POST"])
 def start_job():
