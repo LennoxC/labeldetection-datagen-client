@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h3>Task {{ task_id }}</h3>
+<p>Status: {{ status }}</p>
+<pre>
+{% for line in logs %}
+{{ line }}
+{% endfor %}
+</pre>
+<a href="{{ url_for('job_status', task_id=task_id) }}">Refresh</a>
+{% endblock %}

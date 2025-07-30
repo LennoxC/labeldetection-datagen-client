@@ -1,18 +1,11 @@
-import argparse
-import logging
 import os
-from logging import exception
-
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
+import models
+import redis
+from flask import Flask, render_template, redirect, url_for
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
-from flask import render_template
-import models
-
-from src.datasets.food.foodloader import FoodLoader
-from src.datasets.wine.wineloader import WineLoader
-from logging_config import setup_logging
+from tasks import data_processing
+from sqlalchemy.orm import configure_mappers
 
 sql_user = os.environ["MYSQL_USER"]
 sql_pwd = os.environ["MYSQL_PWD"]
@@ -26,47 +19,34 @@ app.secret_key = key
 
 models.db.init_app(app)
 
-admin = Admin(app, name='LLM Dashboard', template_mode='bootstrap3')
-admin.add_view(ModelView(models.Model, models.db.session))
-admin.add_view(ModelView(models.Application, models.db.session))
-admin.add_view(ModelView(models.TrainingImage, models.db.session))
-admin.add_view(ModelView(models.ImagePrompt, models.db.session))
-admin.add_view(ModelView(models.SystemPrompt, models.db.session))
+#admin = Admin(app, name='LLM Dashboard', template_mode='bootstrap3')
+admin = Admin(app, name='LLM Dashboard')
+
+configure_mappers()
+admin.add_view(ModelView(models.Models, models.db.session))
+admin.add_view(ModelView(models.Applications, models.db.session))
+admin.add_view(ModelView(models.TrainingImages, models.db.session))
+admin.add_view(ModelView(models.ImagePrompts, models.db.session))
+admin.add_view(ModelView(models.SystemPrompts, models.db.session))
 
 @app.route("/")
 def index():
     return render_template("index.html", title="Home", status_message="All systems go")
 
+@app.route("/start-job", methods=["POST"])
+def start_job():
+    task = data_processing.delay()
+    return redirect(url_for("job_status", task_id=task.id))
+
+@app.route("/job/<task_id>")
+def job_status(task_id):
+    redis_client = redis.Redis(host='localhost', port=6379, db=2)
+
+    logs = redis_client.lrange(f"logs:{task_id}", 0, -1)
+    status = redis_client.get(f"status:{task_id}")
+    logs = [log.decode('utf-8') for log in logs]
+    status = status.decode('utf-8') if status else "Unknown"
+    return render_template("status.html", task_id=task_id, status=status, logs=logs)
+
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0')
-
-    '''
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("-d", "--dataset_location", type=str, help="Base path of the dataset files for reading/writing to.")
-    parser.add_argument("-m", "--mode", type=str, help="Which dataset mode? Choose from 'food', 'pharma', 'wine'.")
-    parser.add_argument("-v", "--verbose", action='store_true', help="Enable verbose output")
-
-    args = parser.parse_args()
-
-    if args.verbose:
-        log_level=logging.DEBUG
-    else:
-        log_level=logging.INFO
-
-    setup_logging(level=log_level)
-
-    dataset_location = args.dataset_location
-    mode = args.mode
-    path = os.path.join(dataset_location, "labeldetection-datagen-client", mode)
-
-    if mode == "food":
-        loader = FoodLoader(path)
-    elif mode == "wine":
-        loader = WineLoader(path)
-    else:
-        logging.critical("Invalid mode. Choose from 'food' or 'wine'")
-        exit(0)
-
-    loader.load()
-    '''

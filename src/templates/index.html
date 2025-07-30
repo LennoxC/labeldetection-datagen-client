@@ -4,4 +4,9 @@
   <h1>Welcome to the Dataset Generation Dashboard</h1>
   <p>Click <a href="/admin">here</a> to go to the admin interface.</p>
   <p>Current status: {{ status_message }}</p>
+
+  <form method="POST" action="{{ url_for('start_job') }}">
+    <button type="submit" class="btn btn-primary">Start Job</button>
+  </form>
+
 {% endblock %}

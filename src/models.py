@@ -2,64 +2,60 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
-class Application(db.Model):
-    __tablename__ = 'Applications'
-
+class Applications(db.Model):
+    __tablename__ = "applications"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False)
     path = db.Column(db.String(512), nullable=False)
 
-    # Relationships
-    training_images = db.relationship('TrainingImage', back_populates='application', cascade='all, delete-orphan')
-    image_prompts = db.relationship('ImagePrompt', back_populates='application', cascade='all, delete-orphan')
-    system_prompts = db.relationship('SystemPrompt', back_populates='application', cascade='all, delete-orphan')
+    def __str__(self):
+        return self.name
 
 
-class Model(db.Model):
-    __tablename__ = 'Models'
-
+class Models(db.Model):
+    __tablename__ = "models"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False)
-    host = db.Column(db.String(512), nullable=True)
-    port = db.Column(db.Integer, nullable=True)
+    host = db.Column(db.String(512))
+    port = db.Column(db.Integer)
 
-    # Relationships
-    image_prompts = db.relationship('ImagePrompt', back_populates='target_model', cascade='all, delete-orphan')
-    system_prompts = db.relationship('SystemPrompt', back_populates='target_model', cascade='all, delete-orphan')
+    def __str__(self):
+        return self.name
 
 
-class TrainingImage(db.Model):
-    __tablename__ = 'TrainingImages'
-
+class TrainingImages(db.Model):
+    __tablename__ = "training_images"
     id = db.Column(db.Integer, primary_key=True)
-    applicationId = db.Column(db.Integer, db.ForeignKey('Applications.id'), nullable=False)
+    application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
     guid = db.Column(db.String(255), nullable=False)
     filetype = db.Column(db.String(16), nullable=False)
-    tesseract_ocr_extract = db.Column(db.Text, nullable=True)
-    processed = db.Column(db.Boolean, nullable=True)
+    tesseract_ocr_extract = db.Column(db.Text)
+    processed = db.Column(db.Boolean)
 
-    application = db.relationship('Application', back_populates='training_images')
+    def __str__(self):
+        return f"Image {self.id}"
 
 
-class ImagePrompt(db.Model):
-    __tablename__ = 'ImagePrompts'
-
+class ImagePrompts(db.Model):
+    __tablename__ = "image_prompts"
     id = db.Column(db.Integer, primary_key=True)
-    application_id = db.Column(db.Integer, db.ForeignKey('Applications.id'), nullable=False)
-    target_model_id = db.Column('target_model', db.Integer, db.ForeignKey('Models.id'), nullable=False)
-    prompt = db.Column(db.Text, nullable=True)
+    application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
+    target_model_id = db.Column(db.Integer, db.ForeignKey('models.id'), nullable=False)
+    prompt = db.Column(db.Text)
 
-    application = db.relationship('Application', back_populates='image_prompts')
-    target_model = db.relationship('Model', back_populates='image_prompts')
+    def __str__(self):
+        return f"ImagePrompt {self.id}"
 
 
-class SystemPrompt(db.Model):
-    __tablename__ = 'SystemPrompts'
-
+class SystemPrompts(db.Model):
+    __tablename__ = "system_prompts"
     id = db.Column(db.Integer, primary_key=True)
-    application_id = db.Column(db.Integer, db.ForeignKey('Applications.id'), nullable=False)
-    target_model_id = db.Column('target_model', db.Integer, db.ForeignKey('Models.id'), nullable=False)
-    prompt = db.Column(db.Text, nullable=True)
 
-    application = db.relationship('Application', back_populates='system_prompts')
-    target_model = db.relationship('Model', back_populates='system_prompts')
+    application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
+
+    target_model_id = db.Column(db.Integer, db.ForeignKey('models.id'), nullable=False)
+
+    prompt = db.Column(db.Text)
+
+    def __str__(self):
+        return f"SystemPrompt {self.id}"
