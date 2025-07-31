@@ -2,12 +2,14 @@ import os
 import gzip
 import random
 import urllib.request
-from src.datasets.loader import Loader
+from datasets.loader import Loader
+import os
 
 class FoodLoader(Loader):
     def __init__(self, data_location):
         super(FoodLoader, self).__init__("food")
 
+        '''
         self.data_location = data_location # this is /food in the data root
         self.images_dir = os.path.join(data_location, "images") # /food/images
         self.ocr_dir = os.path.join(data_location, "ocr") # /food/ocr
@@ -31,6 +33,7 @@ class FoodLoader(Loader):
             self.logger.info("Downloading data keys file.")
             print(f"Downloading {data_keys_url}...")
             urllib.request.urlretrieve(data_keys_url, self.local_keys_file)
+        '''
 
     # load an image
     def load(self):

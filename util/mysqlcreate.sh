@@ -24,13 +24,17 @@ DROP TABLE IF EXISTS models;
 DROP TABLE IF EXISTS training_images;
 DROP TABLE IF EXISTS image_prompts;
 DROP TABLE IF EXISTS system_prompts;
+DROP TABLE IF EXISTS image_prompts_models;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
 CREATE TABLE applications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
-    path VARCHAR(512) NOT NULL
+    path VARCHAR(512) NOT NULL,
+    leading_prompt TEXT,
+    middle_prompt TEXT,
+    trailing_prompt TEXT
 );
 
 CREATE TABLE models (
@@ -53,19 +57,28 @@ CREATE TABLE training_images (
 CREATE TABLE image_prompts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     application_id INT NOT NULL,
-    target_model_id INT NOT NULL,
     prompt TEXT,
-    FOREIGN KEY (application_id) REFERENCES applications(id),
-    FOREIGN KEY (target_model_id) REFERENCES models(id)
+    json_property TEXT,
+    json_placeholder TEXT,
+    FOREIGN KEY (application_id) REFERENCES applications(id)
 );
 
-CREATE TABLE system_prompts (
+CREATE TABLE image_prompts_models (
+    image_prompt_id INT NOT NULL,
+    model_id INT NOT NULL,
+    PRIMARY KEY (image_prompt_id, model_id),
+    FOREIGN KEY (image_prompt_id) REFERENCES image_prompts(id) ON DELETE CASCADE,
+    FOREIGN KEY (model_id) REFERENCES models(id) ON DELETE CASCADE
+);
+
+CREATE TABLE datasets (
     id INT AUTO_INCREMENT PRIMARY KEY,
     application_id INT NOT NULL,
-    target_model_id INT NOT NULL,
-    prompt TEXT,
-    FOREIGN KEY (application_id) REFERENCES applications(id),
-    FOREIGN KEY (target_model_id) REFERENCES models(id)
+    description TEXT,
+    reviewed BIT,
+    evaluation TEXT,
+    auto_description TEXT,
+    FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
 );
 
 -- Grant read/write privileges

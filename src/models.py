@@ -3,15 +3,24 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
+image_prompts_models = db.Table(
+    'image_prompts_models',
+    db.Column('image_prompt_id', db.Integer, db.ForeignKey('image_prompts.id'), primary_key=True),
+    db.Column('model_id', db.Integer, db.ForeignKey('models.id'), primary_key=True)
+)
+
 class Applications(db.Model):
     __tablename__ = "applications"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False)
     path = db.Column(db.String(512), nullable=False)
 
+    leading_prompt = db.Column(db.Text)
+    middle_prompt = db.Column(db.Text)
+    trailing_prompt = db.Column(db.Text)
+
     training_images = db.relationship('TrainingImages', backref='application')
     image_prompts = db.relationship('ImagePrompts', backref='application')
-    system_prompts = db.relationship('SystemPrompts', backref='application')
 
     def __str__(self):
         return self.name
@@ -24,8 +33,11 @@ class Models(db.Model):
     host = db.Column(db.String(512))
     port = db.Column(db.Integer)
 
-    image_prompts = db.relationship('ImagePrompts', backref='target_model')
-    system_prompts = db.relationship('SystemPrompts', backref='target_model')
+    image_prompts = db.relationship(
+        'ImagePrompts',
+        secondary=image_prompts_models,
+        back_populates='models'
+    )
 
     def __str__(self):
         return self.name
@@ -46,30 +58,35 @@ class TrainingImages(db.Model):
     def __str__(self):
         return f"Image {self.id}"
 
-
 class ImagePrompts(db.Model):
     __tablename__ = "image_prompts"
     id = db.Column(db.Integer, primary_key=True)
     application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
-    target_model_id = db.Column(db.Integer, db.ForeignKey('models.id'), nullable=False)
     prompt = db.Column(db.Text)
+    json_property = db.Column(db.Text)
+    json_placeholder = db.Column(db.Text)
+
+    models = db.relationship(
+        'Models',
+        secondary=image_prompts_models,
+        back_populates='image_prompts'
+    )
 
     def __str__(self):
-        return f"{self.prompt} | {self.target_model}"
+        model_names = ', '.join([model.name for model in self.models])
+        return f"{self.prompt} | Models: {model_names}"
 
-
-class SystemPrompts(db.Model):
-    __tablename__ = "system_prompts"
+class Datasets(db.Model):
+    __tablename__ = "datasets"
     id = db.Column(db.Integer, primary_key=True)
-
     application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
-
-    target_model_id = db.Column(db.Integer, db.ForeignKey('models.id'), nullable=False)
-
-    prompt = db.Column(db.Text)
+    description = db.Column(db.Text)
+    reviewed = db.Column(db.Boolean)
+    evaluation = db.Column(db.Boolean)
+    auto_description = db.Column(db.Text)
 
     def __str__(self):
-        return f"SystemPrompt {self.prompt} {self.target_model}"
+        return self.id
 
 class TrainingImagesView(ModelView):
     can_delete = False
@@ -77,5 +94,5 @@ class TrainingImagesView(ModelView):
     can_edit = False
     can_view_details = True
 
-class ImagePromptsView(ModelView):
-    column_filters = ['application.name', 'target_model.name']
+#class ImagePromptsView(ModelView):
+#    column_filters = ['application.name', 'target_model_id']

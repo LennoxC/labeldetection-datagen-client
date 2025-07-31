@@ -4,14 +4,32 @@ import time
 import redis
 import pymysql
 import os
-from src.datasets.loader import Loader
-from src.datasets.food.foodloader import FoodLoader
+from datasets.food.foodloader import FoodLoader
+from datetime import datetime
+import json
 
 celery_app = Celery("tasks", broker=broker_url, backend=result_backend)
 
 @celery_app.task(bind=True)
 def data_processing(self, mode):
     redis_client = redis.Redis(host='localhost', port=6379, db=2)
+    task_id = self.request.id
+    start_time = datetime.utcnow().isoformat()
+
+    # Add job summary to a Redis list
+    job_info = {
+        "task_id": task_id,
+        "name": f"{mode.title()} Processing",
+        "started_at": start_time,
+        "mode": mode
+    }
+    redis_client.lpush("job_list", json.dumps(job_info))  # Store latest jobs
+
+    # Set status and initialize logs
+    redis_client.set(f"status:{task_id}", "Started")
+    redis_client.delete(f"logs:{task_id}")
+
+    # Perform work
     connection = pymysql.connect(
         host="localhost",
         user=os.environ["MYSQL_USER"],
@@ -19,51 +37,13 @@ def data_processing(self, mode):
         db=os.environ["MYSQL_DB"]
     )
     cursor = connection.cursor()
+    cursor.execute("SELECT path FROM applications WHERE name = %s LIMIT 1", (mode,))
+    path_result = cursor.fetchone()
+    path = path_result[0] if path_result else None
 
-    path = cursor.execute(f"SELECT path FROM Applications WHERE name = '{mode}' LIMIT 1")
-
-    task_id = self.request.id
-    redis_client.set(f"status:{task_id}", "Started")
-    redis_client.delete(f"logs")
-
-    if mode == "food":
+    if mode == "food" and path:
         loader = FoodLoader(path)
         loader.load()
 
-    for i in range(10):
-        redis_client.rpush(f"logs:{task_id}", f"Step {i} done")
-        time.sleep(1)
-
     redis_client.set(f"status:{task_id}", "Completed")
 
-
-'''
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("-d", "--dataset_location", type=str, help="Base path of the dataset files for reading/writing to.")
-    parser.add_argument("-m", "--mode", type=str, help="Which dataset mode? Choose from 'food', 'pharma', 'wine'.")
-    parser.add_argument("-v", "--verbose", action='store_true', help="Enable verbose output")
-
-    args = parser.parse_args()
-
-    if args.verbose:
-        log_level=logging.DEBUG
-    else:
-        log_level=logging.INFO
-
-    setup_logging(level=log_level)
-
-    dataset_location = args.dataset_location
-    mode = args.mode
-    path = os.path.join(dataset_location, "labeldetection-datagen-client", mode)
-
-    if mode == "food":
-        loader = FoodLoader(path)
-    elif mode == "wine":
-        loader = WineLoader(path)
-    else:
-        logging.critical("Invalid mode. Choose from 'food' or 'wine'")
-        exit(0)
-
-    loader.load()
-'''

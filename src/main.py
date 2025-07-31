@@ -2,13 +2,13 @@ import os
 import models
 import redis
 import pymysql
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, render_template, redirect, url_for, request
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from tasks import data_processing
 from sqlalchemy.orm import configure_mappers
-from models import TrainingImagesView, ImagePromptsView
-
+from models import TrainingImagesView #, ImagePromptsView
+import json
 
 sql_user = os.environ["MYSQL_USER"]
 sql_pwd = os.environ["MYSQL_PWD"]
@@ -28,8 +28,8 @@ configure_mappers()
 admin.add_view(ModelView(models.Models, models.db.session))
 admin.add_view(ModelView(models.Applications, models.db.session))
 admin.add_view(TrainingImagesView(models.TrainingImages, models.db.session))
-admin.add_view(ImagePromptsView(models.ImagePrompts, models.db.session))
-admin.add_view(ModelView(models.SystemPrompts, models.db.session))
+admin.add_view(ModelView(models.ImagePrompts, models.db.session))
+admin.add_view(ModelView(models.Datasets, models.db.session))
 
 @app.route("/")
 def index():
@@ -67,11 +67,20 @@ def index():
 
 @app.route("/jobs")
 def jobs():
-    return render_template("jobs.html")
+    redis_client = redis.Redis(host='localhost', port=6379, db=2)
+    job_entries = redis_client.lrange("job_list", 0, 20)  # show latest 20 jobs
+    jobs_list = []
+    for job_json in job_entries:
+        job = json.loads(job_json)
+        status = redis_client.get(f"status:{job['task_id']}")
+        job["status"] = status.decode('utf-8') if status else "Unknown"
+        jobs_list.append(job)
+    return render_template("jobs.html", jobs=jobs_list)
 
 @app.route("/start-job", methods=["POST"])
 def start_job():
-    task = data_processing.delay()
+    mode = request.form['mode']
+    task = data_processing(mode).delay()
     return redirect(url_for("job_status", task_id=task.id))
 
 @app.route("/job/<task_id>")
