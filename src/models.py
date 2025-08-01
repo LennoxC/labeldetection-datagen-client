@@ -85,6 +85,7 @@ class Datasets(db.Model):
     __tablename__ = "datasets"
     id = db.Column(db.Integer, primary_key=True)
     application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
+    uuid = db.Column(db.Text)
     description = db.Column(db.Text)
     reviewed = db.Column(db.Boolean)
     evaluation = db.Column(db.Boolean)

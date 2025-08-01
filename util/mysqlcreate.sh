@@ -81,6 +81,7 @@ CREATE TABLE image_prompts_models (
 CREATE TABLE datasets (
     id INT AUTO_INCREMENT PRIMARY KEY,
     application_id INT NOT NULL,
+    uuid TEXT NULL,
     description TEXT,
     reviewed BIT,
     evaluation TEXT,

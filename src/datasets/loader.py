@@ -4,6 +4,7 @@ import pymysql
 import os
 import redis
 from datetime import datetime
+import uuid
 
 class Loader:
     def __init__(self, dataset, task_id):
@@ -18,6 +19,7 @@ class Loader:
 
         self.images_count = 0
         self.target_size = 0
+        self.uuid = uuid.uuid4()
 
         self.create_sql_dataset()
 
@@ -124,7 +126,7 @@ class Loader:
 
         auto_description = f"{application_name} dataset, initialized {datetime.now()}. Target size {application_target_size} images."
 
-        dataset_insert = f"INSERT INTO datasets (application_id, auto_description) VALUES ({application_id}, '{auto_description}')"
+        dataset_insert = f"INSERT INTO datasets (application_id, uuid, auto_description) VALUES ({application_id}, '{self.uuid}', '{auto_description}')"
 
         cursor.execute(dataset_insert)
         connection.commit()
@@ -132,4 +134,4 @@ class Loader:
         self.dataset_id = cursor.lastrowid
         self.target_size = application_target_size
 
-        self.data_location = os.path.join(application_path, str(self.dataset_id))
+        self.data_location = os.path.join(application_path, str(self.uuid))
