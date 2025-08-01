@@ -25,6 +25,8 @@ DROP TABLE IF EXISTS training_images;
 DROP TABLE IF EXISTS image_prompts;
 DROP TABLE IF EXISTS system_prompts;
 DROP TABLE IF EXISTS image_prompts_models;
+DROP TABLE IF EXISTS datasets;
+DROP TABLE IF EXISTS prompts;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -32,9 +34,7 @@ CREATE TABLE applications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
     path VARCHAR(512) NOT NULL,
-    leading_prompt TEXT,
-    middle_prompt TEXT,
-    trailing_prompt TEXT
+    target_size INT NULL
 );
 
 CREATE TABLE models (
@@ -42,6 +42,13 @@ CREATE TABLE models (
     name VARCHAR(128) NOT NULL,
     host VARCHAR(512),
     port INT
+);
+
+CREATE TABLE prompts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(256) NOT NULL,
+    prompt TEXT,
+    description TEXT
 );
 
 CREATE TABLE training_images (

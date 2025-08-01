@@ -3,6 +3,7 @@ import gzip
 import random
 import urllib.request
 from datasets.loader import Loader
+import uuid
 import os
 
 class FoodLoader(Loader):
@@ -22,8 +23,6 @@ class FoodLoader(Loader):
         data_keys_url = self.bucket_url + "data/data_keys.gz"
         self.local_keys_file = f"{self.metadata_dir}/data_keys.gz"
 
-        self.logger.debug("Init Food Loader")
-
         if not os.path.exists(self.data_location):
             self.add_logs("Created path: " + self.data_location)
             os.makedirs(self.data_location)
@@ -40,17 +39,16 @@ class FoodLoader(Loader):
 
         self.set_status("Ready for dataset generation.")
 
-
     # load an image
     def load(self):
         self.download()
 
     # sample some prompts
-    def prompts(self):
-        pass
+    def process(self, image_path):
+        return "test1", "test2"
 
     # package to a query
-    def package(self):
+    def save(self, query, image_path, answer):
         pass
 
     # --------------- non inherited methods (custom application specific logic) ---------------
@@ -67,11 +65,17 @@ class FoodLoader(Loader):
             self.logger.debug(f"Downloading food image {key}")
 
             image_url = self.bucket_url + key
-            datapoint_id = key.replace('data/', '').replace('/', '_').replace('.jpg', '')
-            image_path = os.path.join(self.images_dir, f"{datapoint_id}.jpg")
+            #datapoint_id = key.replace('data/', '').replace('/', '_').replace('.jpg', '')
+            image_name = f"{uuid.uuid4()}.jpg"
+            image_path = os.path.join(self.images_dir, image_name)
 
             try:
                 self.logger.debug(f"Downloading image: {image_url} -> {image_path}")
                 urllib.request.urlretrieve(image_url, image_path)
+                self.increment_images()
+
+                return image_name
             except Exception as e:
                 self.logger.critical(f"Failed to download image {image_url}: {e}")
+
+        return None

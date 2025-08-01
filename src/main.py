@@ -31,6 +31,7 @@ admin.add_view(ModelView(models.Applications, models.db.session))
 admin.add_view(TrainingImagesView(models.TrainingImages, models.db.session))
 admin.add_view(ModelView(models.ImagePrompts, models.db.session))
 admin.add_view(ModelView(models.Datasets, models.db.session))
+admin.add_view(ModelView(models.Prompts, models.db.session))
 
 @app.route("/")
 def index():

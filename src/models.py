@@ -14,10 +14,7 @@ class Applications(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False)
     path = db.Column(db.String(512), nullable=False)
-
-    leading_prompt = db.Column(db.Text)
-    middle_prompt = db.Column(db.Text)
-    trailing_prompt = db.Column(db.Text)
+    target_size = db.Column(db.Integer, nullable=False)
 
     training_images = db.relationship('TrainingImages', backref='application')
     image_prompts = db.relationship('ImagePrompts', backref='application')
@@ -42,13 +39,21 @@ class Models(db.Model):
     def __str__(self):
         return self.name
 
+class Prompts(db.Model):
+    __tablename__ = "prompts"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(256), nullable=False)
+    prompt = db.Column(db.Text)
+    description = db.Column(db.Text)
+
+    def __str__(self):
+        return self.name
 
 class TrainingImages(db.Model):
     __tablename__ = "training_images"
     id = db.Column(db.Integer, primary_key=True)
 
     application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
-    #application = db.relationship('Applications', backref='training_images')
 
     guid = db.Column(db.String(255), nullable=False)
     filetype = db.Column(db.String(16), nullable=False)
@@ -93,6 +98,3 @@ class TrainingImagesView(ModelView):
     can_create = False
     can_edit = False
     can_view_details = True
-
-#class ImagePromptsView(ModelView):
-#    column_filters = ['application.name', 'target_model_id']

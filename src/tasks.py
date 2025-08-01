@@ -46,7 +46,7 @@ def data_processing_task(self, mode):
 
     if mode == "food" and path:
         loader = FoodLoader(task_id)
-        loader.load()
+        loader.start()
 
     redis_client.set(f"status:{task_id}", "Completed")
 
