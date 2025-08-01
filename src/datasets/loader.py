@@ -2,13 +2,18 @@ from abc import ABC, abstractmethod
 import logging
 import pymysql
 import os
+import redis
 
 class Loader:
-    def __init__(self, dataset):
+    def __init__(self, dataset, task_id):
         self.dataset = dataset
         self.logger = logging.getLogger(f"{self.__class__.__name__}")
         self.dataset_id = None
+        self.data_location = None
         # insert into datasets
+
+        self.task_id = task_id
+        self.redis_client = redis.Redis(host='localhost', port=6379, db=2)
 
         self.create_sql_dataset()
 
@@ -30,6 +35,12 @@ class Loader:
     # run OCR
     def ocr(self):
         pass
+
+    def set_status(self, message):
+        self.redis_client.set(f"status:{self.task_id}", message)
+
+    def add_logs(self, message):
+        self.redis_client.rpush(f"logs:{self.task_id}", message)
 
     def create_sql_dataset(self):
         connection = pymysql.connect(
@@ -64,4 +75,4 @@ class Loader:
 
         self.dataset_id = cursor.lastrowid
 
-        print(f"Dataset id: {self.dataset_id}")
+        self.data_location = os.path.join(application_path, str(self.dataset_id))

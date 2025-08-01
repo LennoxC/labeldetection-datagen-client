@@ -8,5 +8,9 @@
 {{ line }}
 {% endfor %}
 </pre>
+<form action="{{ url_for('stop_job') }}" method="POST">
+    <input type="hidden" name="task_id" value="{{ task_id }}">
+    <button type="submit">Stop Job</button>
+</form>
 <a href="{{ url_for('job_status', task_id=task_id) }}">Refresh</a>
 {% endblock %}

@@ -7,11 +7,14 @@ import os
 from datasets.food.foodloader import FoodLoader
 from datetime import datetime
 import json
+from dotenv import load_dotenv
 
+load_dotenv()
 celery_app = Celery("tasks", broker=broker_url, backend=result_backend)
 
 @celery_app.task(bind=True)
-def data_processing(self, mode):
+def data_processing_task(self, mode):
+    print("started task")
     redis_client = redis.Redis(host='localhost', port=6379, db=2)
     task_id = self.request.id
     start_time = datetime.utcnow().isoformat()
@@ -26,10 +29,10 @@ def data_processing(self, mode):
     redis_client.lpush("job_list", json.dumps(job_info))  # Store latest jobs
 
     # Set status and initialize logs
-    redis_client.set(f"status:{task_id}", "Started")
+    redis_client.set(f"status:{task_id}", "Setting up...")
     redis_client.delete(f"logs:{task_id}")
 
-    # Perform work
+    # Find the path from the database
     connection = pymysql.connect(
         host="localhost",
         user=os.environ["MYSQL_USER"],
@@ -42,7 +45,7 @@ def data_processing(self, mode):
     path = path_result[0] if path_result else None
 
     if mode == "food" and path:
-        loader = FoodLoader(path)
+        loader = FoodLoader(task_id)
         loader.load()
 
     redis_client.set(f"status:{task_id}", "Completed")

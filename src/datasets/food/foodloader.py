@@ -6,14 +6,16 @@ from datasets.loader import Loader
 import os
 
 class FoodLoader(Loader):
-    def __init__(self, data_location):
-        super(FoodLoader, self).__init__("food")
+    def __init__(self, task_id):
+        super(FoodLoader, self).__init__("food", task_id)
 
-        '''
-        self.data_location = data_location # this is /food in the data root
-        self.images_dir = os.path.join(data_location, "images") # /food/images
-        self.ocr_dir = os.path.join(data_location, "ocr") # /food/ocr
-        self.metadata_dir = os.path.join(data_location, "metadata")
+        self.set_status("Setting up food loader.")
+
+        self.add_logs("Food loader created. Creating directories...")
+
+        self.images_dir = os.path.join(self.data_location, "images") # /food/images
+        self.ocr_dir = os.path.join(self.data_location, "ocr") # /food/ocr
+        self.metadata_dir = os.path.join(self.data_location, "metadata")
 
         # specific to food dataset AWS download
         self.bucket_url = "https://openfoodfacts-images.s3.eu-west-3.amazonaws.com/"
@@ -22,18 +24,22 @@ class FoodLoader(Loader):
 
         self.logger.debug("Init Food Loader")
 
-        if not os.path.exists(data_location):
-            os.makedirs(data_location)
+        if not os.path.exists(self.data_location):
+            self.add_logs("Created path: " + self.data_location)
+            os.makedirs(self.data_location)
 
         os.makedirs(self.images_dir, exist_ok=True)
         os.makedirs(self.ocr_dir, exist_ok=True)
         os.makedirs(self.metadata_dir, exist_ok=True)
 
         if not os.path.exists(self.local_keys_file):
-            self.logger.info("Downloading data keys file.")
-            print(f"Downloading {data_keys_url}...")
+            self.add_logs(f"Downloading data keys file: {data_keys_url}")
             urllib.request.urlretrieve(data_keys_url, self.local_keys_file)
-        '''
+
+        self.add_logs("Setup complete.")
+
+        self.set_status("Ready for dataset generation.")
+
 
     # load an image
     def load(self):

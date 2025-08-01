@@ -5,10 +5,11 @@ import pymysql
 from flask import Flask, render_template, redirect, url_for, request
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
-from tasks import data_processing
+from tasks import data_processing_task
 from sqlalchemy.orm import configure_mappers
 from models import TrainingImagesView #, ImagePromptsView
 import json
+from tasks import celery_app
 
 sql_user = os.environ["MYSQL_USER"]
 sql_pwd = os.environ["MYSQL_PWD"]
@@ -42,13 +43,13 @@ def index():
     )
     cursor = connection.cursor()
 
-    query = """
+    query = '''
             SELECT COUNT(*)
             FROM training_images
                      INNER JOIN applications
                                 ON applications.id = training_images.application_id
-            WHERE applications.name = %s \
-            """
+            WHERE applications.name = %s ;
+            '''
 
     categories = ['food', 'wine', 'pharma']
     counts = {}
@@ -80,8 +81,22 @@ def jobs():
 @app.route("/start-job", methods=["POST"])
 def start_job():
     mode = request.form['mode']
-    task = data_processing(mode).delay()
+    task = data_processing_task.delay(mode)
     return redirect(url_for("job_status", task_id=task.id))
+
+@app.route("/stop-job", methods=["POST"])
+def stop_job():
+    task_id = request.form['task_id']
+
+    # Revoke the task
+    celery_app.control.revoke(task_id, terminate=True)
+
+    # Update status in Redis
+    redis_client = redis.Redis(host='localhost', port=6379, db=2)
+    redis_client.set(f"status:{task_id}", "Stopped")
+
+    return redirect(url_for("job_status", task_id=task_id))
+
 
 @app.route("/job/<task_id>")
 def job_status(task_id):
