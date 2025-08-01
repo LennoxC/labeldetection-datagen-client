@@ -2,6 +2,11 @@
 
 {% block content %}
   <h1>Welcome to the Dataset Generation Dashboard</h1>
-  <p>Click <a href="/admin">here</a> to go to the admin interface.</p>
-  <p>Current status: {{ status_message }}</p>
+  <h2 class="mb-4">Current Usage</h2>
+
+  <p><strong>Food Dataset Size:</strong> {{food_images}} images</p>
+  <p><strong>Wine Dataset Size:</strong> {{wine_images}} images</p>
+  <p><strong>Pharma Dataset Size:</strong> {{pharma_images}} images</p>
+
+
 {% endblock %}
