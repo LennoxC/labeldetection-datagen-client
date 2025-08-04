@@ -1,10 +1,13 @@
 from abc import ABC, abstractmethod
 import logging
 import pymysql
-import os
 import redis
 from datetime import datetime
 import uuid
+import os
+import pandas as pd
+import json
+import ast
 
 class Loader:
     def __init__(self, dataset, task_id):
@@ -27,23 +30,43 @@ class Loader:
         self.set_status("Running")
         self.add_logs(f"Targeting a dataset of {self.target_size} images.")
         while self.images_count < self.target_size:
-            try:
-                # load an image, return its file path
-                image_path = self.load()
-                # process the image, return a query, imagepath, answer
-                query, answer = self.process(image_path)
-                # save the image, query, answer
-                self.save(query, image_path, answer)
+            # load an image, return its file path
+            image_path, datapoint_id = self.load()
 
-                # logging
-                self.add_logs(f"Image Processing {100 * (self.images_count / self.target_size)}% complete: {self.images_count}/{self.target_size}")
-            except Exception as e:
-                self.add_logs(f"Exception thrown: str(e)")
+            if image_path is None:
+                self.add_logs("Image path not found, re-processing")
+                continue
+
+            # process the image, return a query, imagepath, answer
+            query, answer = self.process(image_path)
+            # save the image, query, answer
+            self.save(query, image_path, answer, datapoint_id)
+
+            # logging
+            self.add_logs(
+                f"Image Processing {100 * (self.images_count / self.target_size)}% complete: {self.images_count}/{self.target_size}")
+            #try:
+            #    # load an image, return its file path
+            #    image_path, datapoint_id = self.load()
+
+                #if image_path is None:
+#                    self.add_logs("Image path not found, re-processing")
+#                    continue
+#
+#                # process the image, return a query, imagepath, answer
+#                query, answer = self.process(image_path)
+#                # save the image, query, answer
+#                self.save(query, image_path, answer, datapoint_id)
+#
+#                # logging
+#                self.add_logs(f"Image Processing {100 * (self.images_count / self.target_size)}% complete: {self.images_count}/{self.target_size}")
+#            except Exception as e:
+#                self.add_logs(f"Exception thrown: {str(e)}")
 
     # load an image
     @abstractmethod
     def load(self):
-        return None
+        return None, None
 
     # sample some prompts
     @abstractmethod
@@ -52,7 +75,7 @@ class Loader:
 
     # package to a query
     @abstractmethod
-    def save(self, query, image_path, answer):
+    def save(self, query, image_path, answer, datapoint_id):
         pass
 
     # run OCR
@@ -90,17 +113,20 @@ class Loader:
 
         return prompt
 
-    def get_model_connection(self, model_name):
+    def get_image_prompts(self, application):
         cursor = self.get_cursor()
 
-        # get the application id and base path
-        query = f"SELECT host, port FROM models WHERE name = '{model_name}' LIMIT 1"
+        query = f"""
+                SELECT prompt, json_property, json_placeholder
+                FROM image_prompts AS img
+                LEFT JOIN applications AS app ON img.application_id = app.id
+                WHERE app.name = '{self.dataset}'
+                """
 
         cursor.execute(query)
+        prompts = cursor.fetchall()
 
-        details = cursor.fetchone()[0]
-
-        return details[0], details[1]
+        return prompts
 
     def create_sql_dataset(self):
         connection = pymysql.connect(
@@ -135,3 +161,49 @@ class Loader:
         self.target_size = application_target_size
 
         self.data_location = os.path.join(application_path, str(self.uuid))
+
+    def make_results_csv(self, filepath):
+        columns = ["datapoint_id", "image_name", "dataset", "property", "prompt", "json_placeholder", "result1", "result2", "matches", "result"]  # Replace with your actual column names
+        df = pd.DataFrame(columns=columns)
+        df.to_csv(filepath, index=False)
+
+
+    def get_prompts_df(self):
+        cursor = self.get_cursor()
+
+        query = f"""
+                SELECT prompt, json_property, json_placeholder
+                FROM image_prompts AS img
+                LEFT JOIN applications AS app ON img.application_id = app.id
+                WHERE app.name = '{self.dataset}'
+                """
+
+        cursor.execute(query)
+        prompts = cursor.fetchall()
+
+        columns = [desc[0] for desc in cursor.description]
+
+        return pd.DataFrame(prompts, columns=columns)
+
+    def safe_parse_json(self, json_str):
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            try:
+                json_str = json_str.strip()
+                cleaned = json_str.replace("'", '"').strip().rstrip(',')
+                return json.loads(cleaned)
+            except json.JSONDecodeError:
+                try:
+                    return ast.literal_eval(json_str)
+                except (ValueError, SyntaxError):
+                    print("Failed to parse JSON.")
+                    return {}
+
+    def parse_response(self, json_str, expert):
+        json_obj = self.safe_parse_json(json_str)
+
+        if isinstance(json_obj, dict):
+            return pd.DataFrame(list(json_obj.items()), columns=["property", expert])
+        else:
+            return pd.DataFrame(columns=["property", expert])

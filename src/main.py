@@ -5,6 +5,9 @@ import pymysql
 from flask import Flask, render_template, redirect, url_for, request
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
+
+from sql_helper import SqlHelper
+from model_helper import ModelHelper
 from tasks import data_processing_task
 from sqlalchemy.orm import configure_mappers
 from models import TrainingImagesView #, ImagePromptsView
@@ -36,13 +39,7 @@ admin.add_view(ModelView(models.Prompts, models.db.session))
 @app.route("/")
 def index():
     redis_client = redis.Redis(host='localhost', port=6379, db=2)
-    connection = pymysql.connect(
-        host="localhost",
-        user=os.environ["MYSQL_USER"],
-        password=os.environ["MYSQL_PWD"],
-        db=os.environ["MYSQL_DB"]
-    )
-    cursor = connection.cursor()
+    cursor = SqlHelper().get_cursor()
 
     query = '''
             SELECT COUNT(*)
@@ -108,6 +105,47 @@ def job_status(task_id):
     logs = [log.decode('utf-8') for log in logs]
     status = status.decode('utf-8') if status else "Unknown"
     return render_template("status.html", task_id=task_id, status=status, logs=logs)
+
+
+@app.route("/chat", methods=["GET", "POST"])
+def test_model():
+
+    sql = SqlHelper()
+
+    cursor = sql.get_cursor()  # or self.get_cursor() if inside a class
+    cursor.execute("SELECT name FROM models")
+    model_names = [row[0] for row in cursor.fetchall()]
+
+    if request.method == "POST":
+        model_name = request.form.get("model_name")
+        prompt = request.form.get("prompt")
+        image_file = request.files.get("image")
+
+        model = ModelHelper(model_name)
+
+        image_path = None
+        if image_file and image_file.filename != "":
+            image_path = f"/tmp/{image_file.filename}"
+            image_file.save(image_path)
+
+        result = model.query_model(prompt, image=image_path)
+
+        #try:
+
+        #except Exception as e:
+        #    result = f"Error: {str(e)}"
+
+        # Remove image after use
+        if image_path:
+            try:
+                os.remove(image_path)
+            except OSError:
+                pass
+
+        return render_template("test_model.html", model_names=model_names, result=result,
+                               selected_model=model_name, prompt=prompt)
+
+    return render_template("test_model.html", model_names=model_names, result=None)
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0')

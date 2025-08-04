@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Test a Model</h1>
+    <div id="chat-container">
+        <form style="display: flex; flex-direction: column" action="{{ url_for('test_model') }}" method="post" enctype="multipart/form-data">
+        <label for="model_name">Model:</label>
+        <select name="model_name" id="model_name" required>
+            {% for name in model_names %}
+                <option value="{{ name }}" {% if name == selected_model %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="prompt">Prompt:</label>
+        <textarea name="prompt" id="prompt" required>{{ prompt or '' }}</textarea>
+
+        <label for="image">Optional image:</label>
+        <input type="file" name="image" accept="image/*">
+
+        <button type="submit">Submit</button>
+    </form>
+
+    {% if result %}
+        <div class="result-box">
+            <h2>Model Response:</h2>
+            <pre>{{ result }}</pre>
+        </div>
+    {% endif %}
+    </div>
+{% endblock %}
