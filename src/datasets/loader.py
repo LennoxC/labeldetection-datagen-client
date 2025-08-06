@@ -30,38 +30,23 @@ class Loader:
         self.set_status("Running")
         self.add_logs(f"Targeting a dataset of {self.target_size} images.")
         while self.images_count < self.target_size:
-            # load an image, return its file path
-            image_path, datapoint_id = self.load()
+            try:
+                # load an image, return its file path
+                image_path, datapoint_id = self.load()
 
-            if image_path is None:
-                self.add_logs("Image path not found, re-processing")
-                continue
+                if image_path is None:
+                    self.add_logs("Image path not found, re-processing")
+                    continue
 
-            # process the image, return a query, imagepath, answer
-            query, answer = self.process(image_path)
-            # save the image, query, answer
-            self.save(query, image_path, answer, datapoint_id)
+                # process the image, return a query, imagepath, answer
+                query, answer = self.process(image_path)
+                # save the image, query, answer
+                self.save(query, image_path, answer, datapoint_id)
 
-            # logging
-            self.add_logs(
-                f"Image Processing {100 * (self.images_count / self.target_size)}% complete: {self.images_count}/{self.target_size}")
-            #try:
-            #    # load an image, return its file path
-            #    image_path, datapoint_id = self.load()
-
-                #if image_path is None:
-#                    self.add_logs("Image path not found, re-processing")
-#                    continue
-#
-#                # process the image, return a query, imagepath, answer
-#                query, answer = self.process(image_path)
-#                # save the image, query, answer
-#                self.save(query, image_path, answer, datapoint_id)
-#
-#                # logging
-#                self.add_logs(f"Image Processing {100 * (self.images_count / self.target_size)}% complete: {self.images_count}/{self.target_size}")
-#            except Exception as e:
-#                self.add_logs(f"Exception thrown: {str(e)}")
+                # logging
+                self.add_logs(f"Image Processing {100 * (self.images_count / self.target_size)}% complete: {self.images_count}/{self.target_size}")
+            except Exception as e:
+                self.add_logs(f"Exception thrown: {str(e)}")
 
     # load an image
     @abstractmethod
@@ -207,3 +192,12 @@ class Loader:
             return pd.DataFrame(list(json_obj.items()), columns=["property", expert])
         else:
             return pd.DataFrame(columns=["property", expert])
+
+    def filter_nans(self, df):
+        nan_values = ["nan", "NaN", None, "", " "]
+
+        df = df[~df['result1'].isin(nan_values)]
+        df = df[~df['result2'].isin(nan_values)]
+        df = df[~df['result'].isin(nan_values)]
+
+        return df

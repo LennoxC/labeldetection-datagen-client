@@ -13,6 +13,7 @@ from sqlalchemy.orm import configure_mappers
 from models import TrainingImagesView #, ImagePromptsView
 import json
 from tasks import celery_app
+import pandas as pd
 
 sql_user = os.environ["MYSQL_USER"]
 sql_pwd = os.environ["MYSQL_PWD"]
@@ -38,30 +39,45 @@ admin.add_view(ModelView(models.Prompts, models.db.session))
 
 @app.route("/")
 def index():
-    redis_client = redis.Redis(host='localhost', port=6379, db=2)
     cursor = SqlHelper().get_cursor()
 
+    # Get all unique applications for the filter dropdown
+    cursor.execute("SELECT DISTINCT name FROM applications ORDER BY name")
+    applications = [row[0] for row in cursor.fetchall()]
+
+    # Optional filter
+    selected_app = request.args.get("application")
+
     query = '''
-            SELECT COUNT(*)
-            FROM training_images
-                     INNER JOIN applications
-                                ON applications.id = training_images.application_id
-            WHERE applications.name = %s ;
+            SELECT ds.uuid, \
+                   ds.description, \
+                   ds.reviewed, \
+                   ds.evaluation, \
+                   ds.auto_description, \
+                   app.name AS application, \
+                   app.path, \
+                   app.target_size
+            FROM datasets AS ds
+                     LEFT JOIN applications AS app ON app.id = ds.application_id \
             '''
 
-    categories = ['food', 'wine', 'pharma']
-    counts = {}
+    params = ()
+    if selected_app:
+        query += " WHERE app.name = %s"
+        params = (selected_app,)
 
-    for category in categories:
-        cursor.execute(query, (category,))
-        counts[category] = cursor.fetchone()[0]
+    cursor.execute(query, params)
+    datasets = cursor.fetchall()
+
+    # Column names for the table headers
+    column_names = [desc[0] for desc in cursor.description]
 
     return render_template(
         "index.html",
-        title="Home",
-        food_images=counts['food'],
-        wine_images=counts['wine'],
-        pharma_images=counts['pharma']
+        datasets=datasets,
+        columns=column_names,
+        applications=applications,
+        selected_app=selected_app
     )
 
 @app.route("/jobs")
@@ -94,6 +110,132 @@ def stop_job():
     redis_client.set(f"status:{task_id}", "Stopped")
 
     return redirect(url_for("job_status", task_id=task_id))
+
+# In-memory cache to avoid reloading CSV every time (for demonstration)
+csv_cache = {}
+
+@app.route("/dataset/<dataset_id>")
+def view_dataset(dataset_id):
+    cursor = SqlHelper().get_cursor()
+    query = f'''
+        SELECT 
+            ds.uuid,
+            ds.description,
+            ds.reviewed,
+            ds.evaluation,
+            ds.auto_description,
+            app.name AS application,
+            app.path,
+            app.target_size
+        FROM datasets AS ds
+        LEFT JOIN applications AS app ON app.id = ds.application_id
+        WHERE ds.uuid = '{dataset_id}'
+    '''
+    cursor.execute(query)
+    row = cursor.fetchone()
+    if not row:
+        return "Dataset not found", 404
+
+    dataset = {
+        "uuid": row[0],
+        "description": row[1],
+        "reviewed": row[2],
+        "evaluation": row[3],
+        "auto_description": row[4],
+        "application": row[5],
+        "path": row[6],
+        "target_size": row[7],
+    }
+
+    full_path = os.path.join(dataset["path"], dataset["uuid"])
+    csv_path = os.path.join(full_path, "outputs.csv")
+
+    if not os.path.exists(csv_path):
+        return f"CSV file not found at {csv_path}", 404
+
+    dataset_df = pd.read_csv(csv_path)
+    rows_count = len(dataset_df)
+
+    # Optional filtering
+    show_only_unmatched = request.args.get("unmatched") == "true"
+    if show_only_unmatched:
+        dataset_df = dataset_df[dataset_df["matches"] == False]
+
+    dataset_df["matches"] = dataset_df["matches"].astype(bool)
+
+    # Store in cache: both dataframe and path
+    csv_cache[dataset_id] = {
+        "df": dataset_df,
+        "path": full_path
+    }
+
+
+    unmatched_rows_count = len(dataset_df[dataset_df["matches"] == False])
+
+    return render_template("dataset_view.html",
+                           dataset=dataset,
+                           rows_count=rows_count,
+                           unmatched_rows_count=unmatched_rows_count,
+                           records=dataset_df.to_dict(orient="records"),
+                           show_only_unmatched=show_only_unmatched)
+
+
+@app.route("/dataset/<dataset_id>/image/<image_name>", methods=["GET", "POST"])
+def view_image(dataset_id, image_name):
+    cached = csv_cache.get(dataset_id)
+    if cached is None:
+        return "Dataset not loaded", 400
+
+    dataset_df = cached["df"]
+    full_path = cached["path"]
+    records = dataset_df[dataset_df["image_name"] == image_name].copy()
+
+    if request.method == "POST":
+        for i, row in records.iterrows():
+            r1 = request.form.get(f"result1_{i}", "").strip()
+            r2 = request.form.get(f"result2_{i}", "").strip()
+            result = request.form.get(f"result_{i}", "").strip()
+
+            # Update the main DataFrame at the same index
+            dataset_df.at[i, "result1"] = r1
+            dataset_df.at[i, "result2"] = r2
+            dataset_df.at[i, "result"] = result
+            dataset_df.at[i, "matches"] = (r1 == r2)
+
+        csv_path = os.path.join(full_path, "outputs.csv")
+
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+        dataset_df.to_csv(csv_path, index=False)
+
+        return redirect(url_for("view_image", dataset_id=dataset_id, image_name=image_name))
+
+    image_path = os.path.join(full_path, "images", image_name)
+    if not os.path.exists(image_path):
+        return f"Image not found at {image_path}", 404
+
+    # Expose image path via static route:
+    static_url_path = f"/dataset/{dataset_id}/images/{image_name}"
+
+    return render_template("image_view.html",
+                           image_name=image_name,
+                           image_path=static_url_path,
+                           records=records.to_dict(orient="records"),
+                           dataset_id=dataset_id)
+
+from flask import send_file
+
+@app.route("/dataset/<dataset_id>/images/<image_name>")
+def serve_dataset_image(dataset_id, image_name):
+    cached = csv_cache.get(dataset_id)
+    if cached is None:
+        return "Dataset not loaded", 400
+
+    image_path = os.path.join(cached["path"], "images", image_name)
+    if not os.path.exists(image_path):
+        return f"Image not found at {image_path}", 404
+
+    return send_file(image_path)
 
 
 @app.route("/job/<task_id>")

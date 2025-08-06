@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container">
+        <h1>Dataset: {{ dataset.uuid }}</h1>
+
+        <p><strong>Description:</strong> {{ dataset.description }}</p>
+        <p><strong>Reviewed:</strong> {{ dataset.reviewed }}</p>
+        <p><strong>Evaluation:</strong> {{ dataset.evaluation }}</p>
+        <p><strong>Auto Description:</strong> {{ dataset.auto_description }}</p>
+        <p><strong>Application:</strong> {{ dataset.application }}</p>
+        <p><strong>Rows:</strong> {{ rows_count }}</p>
+        <p><strong>Unmatched Rows:</strong> {{ unmatched_rows_count }}</p>
+
+        <form method="get">
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="unmatched" id="unmatchedCheckbox"
+                    value="true" {% if show_only_unmatched %}checked{% endif %} onchange="this.form.submit()">
+                <label class="form-check-label" for="unmatchedCheckbox">
+                    Show only unmatched rows
+                </label>
+            </div>
+        </form>
+
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Property</th>
+                    <th>Prompt</th>
+                    <th>Result1</th>
+                    <th>Result2</th>
+                    <th>Matches</th>
+                    <th>Result</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in records %}
+                <tr>
+                    <td class="p-2">{{ row.property }}</td>
+                    <td class="p-2">{{ row.prompt }}</td>
+                    <td class="p-2">{{ row.result1 }}</td>
+                    <td class="p-2">{{ row.result2 }}</td>
+                    <td class="p-2">{{ row.matches }}</td>
+                    <td class="p-2">{{ row.result }}</td>
+                    <td class="p-2">
+                        <a class="btn btn-sm btn-primary"
+                           href="{{ url_for('view_image', dataset_id=dataset.uuid, image_name=row.image_name) }}">
+                            View Image
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+{% endblock %}

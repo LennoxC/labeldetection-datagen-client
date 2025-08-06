@@ -8,7 +8,6 @@ import shutil
 from model_helper import ModelHelper
 import pandas as pd
 
-
 class FoodLoader(Loader):
     def __init__(self, task_id):
         super(FoodLoader, self).__init__("food", task_id)
@@ -139,23 +138,8 @@ class FoodLoader(Loader):
 
         df = df[["datapoint_id", "image_name", "dataset", "property", "prompt", "json_placeholder", "result1", "result2", "matches", "result"]]
 
+        df = self.filter_nans(df)
+
         df.to_csv(self.results_csv_path, mode="a", header=False, index=False)
-
-        #output_dir = os.path.join(self.output_dir, datapoint_id)
-
-        #os.makedirs(output_dir, exist_ok=True)
-
-        #query_file_name = f"{datapoint_id}{self.prompt_file_extension}"
-        #answer_file_name = f"{datapoint_id}{self.answer_file_extension}"
-
-        #image_destination_path = os.path.join(output_dir, os.path.basename(image_path))
-
-        #with open(os.path.join(output_dir, query_file_name), 'w') as file:
-        #    file.write(query)
-
-        #with open(os.path.join(output_dir, answer_file_name), 'w') as file:
-        #    file.write(answer)
-
-        #shutil.copy(image_path, image_destination_path)
 
         self.increment_images()

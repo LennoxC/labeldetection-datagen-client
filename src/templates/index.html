@@ -2,11 +2,48 @@
 
 {% block content %}
   <h1>Welcome to the Dataset Generation Dashboard</h1>
-  <h2 class="mb-4">Current Usage</h2>
+<div class="container">
+        <h1 class="mb-4">Datasets</h1>
 
-  <p><strong>Food Dataset Size:</strong> {{food_images}} images</p>
-  <p><strong>Wine Dataset Size:</strong> {{wine_images}} images</p>
-  <p><strong>Pharma Dataset Size:</strong> {{pharma_images}} images</p>
+        <form method="get" class="mb-4">
+            <div class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <label for="application" class="col-form-label">Filter by Application:</label>
+                </div>
+                <div class="col-auto">
+                    <select id="application" name="application" class="form-select" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        {% for app in applications %}
+                            <option value="{{ app }}" {% if selected_app == app %}selected{% endif %}>{{ app }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        {% for col in columns %}
+                            <th>{{ col }}</th>
+                        {% endfor %}
+                        <th>View</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in datasets %}
+                        <tr>
+                            {% for cell in row %}
+                                <td class="p-2">{{ cell }}</td>
+                            {% endfor %}
+                            <td><a href="/dataset/{{ row[0] }}" class="btn btn-sm btn-outline-primary">Open</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 
 
 {% endblock %}
