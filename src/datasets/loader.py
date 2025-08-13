@@ -9,12 +9,16 @@ import pandas as pd
 import json
 import ast
 
+from ocr_helper import OCRHelper
+
+
 class Loader:
     def __init__(self, dataset, task_id):
         self.dataset = dataset
         self.logger = logging.getLogger(f"{self.__class__.__name__}")
         self.dataset_id = None
         self.data_location = None
+        self.application_path = None
         # insert into datasets
 
         self.task_id = task_id
@@ -25,6 +29,8 @@ class Loader:
         self.uuid = uuid.uuid4()
 
         self.create_sql_dataset()
+
+        self.ocr_engine = OCRHelper()
 
     def start(self):
         self.set_status("Running")
@@ -64,8 +70,8 @@ class Loader:
         pass
 
     # run OCR
-    def ocr(self):
-        pass
+    def ocr(self, image_path):
+        return "; ".join(self.ocr_engine.inference(image_path))
 
     def increment_images(self):
         self.images_count += 1
@@ -146,6 +152,8 @@ class Loader:
         self.target_size = application_target_size
 
         self.data_location = os.path.join(application_path, str(self.uuid))
+
+        self.application_path = application_path
 
     def make_results_csv(self, filepath):
         columns = ["datapoint_id", "image_name", "dataset", "property", "prompt", "json_placeholder", "result1", "result2", "matches", "result"]  # Replace with your actual column names

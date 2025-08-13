@@ -1,4 +1,6 @@
 import os
+import uuid
+
 import models
 import redis
 import pymysql
@@ -8,12 +10,14 @@ from flask_admin.contrib.sqla import ModelView
 
 from sql_helper import SqlHelper
 from model_helper import ModelHelper
+from src.ocr_helper import OCRHelper
 from tasks import data_processing_task
 from sqlalchemy.orm import configure_mappers
 from models import TrainingImagesView #, ImagePromptsView
 import json
 from tasks import celery_app
 import pandas as pd
+import numpy as np
 
 sql_user = os.environ["MYSQL_USER"]
 sql_pwd = os.environ["MYSQL_PWD"]
@@ -272,11 +276,6 @@ def test_model():
 
         result = model.query_model(prompt, image=image_path)
 
-        #try:
-
-        #except Exception as e:
-        #    result = f"Error: {str(e)}"
-
         # Remove image after use
         if image_path:
             try:
@@ -288,6 +287,32 @@ def test_model():
                                selected_model=model_name, prompt=prompt)
 
     return render_template("test_model.html", model_names=model_names, result=None)
+
+@app.route("/ocr", methods=["GET", "POST"])
+def test_ocr():
+    ocr = OCRHelper()
+
+    if request.method == "POST":
+        image_file = request.files.get("image")
+
+        if image_file and image_file.filename != "":
+            image_path = f"/tmp/{uuid.uuid4()}_{image_file.filename}"
+            image_file.save(image_path)
+
+            lines = ocr.inference(image_path)
+            output = "\n".join(lines)
+
+            # Clean up image file
+            #try:
+            #    os.remove(image_path)
+            #except OSError:
+            #    pass
+
+            #json_string = json.dumps(output, indent=4, ensure_ascii=False)
+
+            return render_template("test_ocr.html", result=output)
+
+    return render_template("test_ocr.html", result=None)
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0')

@@ -5,6 +5,7 @@ import redis
 import pymysql
 import os
 from datasets.food.foodloader import FoodLoader
+from datasets.wine.wineloader import WineLoader
 from datetime import datetime
 import json
 from dotenv import load_dotenv
@@ -46,6 +47,10 @@ def data_processing_task(self, mode):
 
     if mode == "food" and path:
         loader = FoodLoader(task_id)
+        loader.start()
+
+    if mode == "wine" and path:
+        loader = WineLoader(task_id)
         loader.start()
 
     redis_client.set(f"status:{task_id}", "Completed")

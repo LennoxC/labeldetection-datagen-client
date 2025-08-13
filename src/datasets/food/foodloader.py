@@ -23,9 +23,6 @@ class FoodLoader(Loader):
 
         self.results_csv_path = os.path.join(self.data_location, "outputs.csv")
 
-        self.prompt_file_extension = "_prompt.txt"
-        self.answer_file_extension = "_label.txt"
-
         # specific to food dataset AWS download
         self.bucket_url = "https://openfoodfacts-images.s3.eu-west-3.amazonaws.com/"
         data_keys_url = self.bucket_url + "data/data_keys.gz"

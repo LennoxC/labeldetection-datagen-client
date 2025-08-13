@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Test the OCR engine</h1>
+    <div id="ocr-container">
+        <form style="display: flex; flex-direction: column" action="{{ url_for('test_ocr') }}" method="post" enctype="multipart/form-data">
+
+        <label for="image">Image:</label>
+        <input type="file" name="image" accept="image/*">
+
+        <button type="submit">Submit</button>
+    </form>
+
+    {% if result %}
+        <div class="result-box">
+            <h2>OCR Output:</h2>
+            <pre>{{ result }}</pre>
+        </div>
+    {% endif %}
+    </div>
+{% endblock %}
