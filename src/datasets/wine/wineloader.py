@@ -1,6 +1,8 @@
 import random
 import shutil
 import uuid
+
+import numpy as np
 import pandas as pd
 
 from datasets.loader import Loader
@@ -85,27 +87,39 @@ class WineLoader(Loader):
                           {prompt_closing_ovis}
                           """
 
-        model = ModelHelper("AIDC-AI/Ovis2-4B")
+        model1 = ModelHelper("google/gemma-3-12b-it")
+        model2 = ModelHelper("AIDC-AI/Ovis2-4B")
 
-        response = model.query_model(prompt, image=image_path)
+        response1 = model1.query_model(prompt, image=image_path)
+        response2 = model2.query_model(prompt, image=image_path)
 
-        return prompt, response
+        return prompt, [response1, response2]
 
     def save_to_output(self, query, image_path, answer, datapoint_id):
         datapoint_id = str(datapoint_id)
         image_name = os.path.basename(image_path)
         prompts = self.prompts
 
-        properties = self.parse_response(answer, "result1")
+        properties1 = self.parse_response(answer[0], "result1")
+        properties2 = self.parse_response(answer[1], "result2")
 
-        df = pd.merge(prompts, properties, left_on="json_property", right_on="property")
+        df1 = pd.merge(prompts, properties1, left_on="json_property", right_on="property")
+        df2 = pd.merge(prompts, properties2, left_on="json_property", right_on="property")
+
+        df = pd.DataFrame()
+
+        df["property"] = df1["property"]
+        df["prompt"] = df1["prompt"]
+        df["json_placeholder"] = df1["json_placeholder"]
+
+        df["result1"] = df1["result1"]
+        df["result2"] = df2["result2"]
 
         df["image_name"] = image_name
         df["datapoint_id"] = datapoint_id
         df["dataset"] = self.dataset
-        df["result2"] = df["result1"]
-        df["matches"] = (df["result1"] == df["result2"])
-        df["result"] = df["result1"]
+        df["matches"] = df.apply(lambda row: self.assess_match(row["result1"], row["result2"]), axis=1)
+        df["result"] = np.where(df["matches"], df["result1"].apply(self.matching_preprocessing), "no match")
 
         df = df[["datapoint_id", "image_name", "dataset", "property", "prompt", "json_placeholder", "result1", "result2", "matches", "result"]]
 

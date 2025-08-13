@@ -8,6 +8,7 @@ import os
 import pandas as pd
 import json
 import ast
+import re
 
 from ocr_helper import OCRHelper
 
@@ -179,6 +180,15 @@ class Loader:
         return pd.DataFrame(prompts, columns=columns)
 
     def safe_parse_json(self, json_str):
+        if not isinstance(json_str, str):
+            json_str = str(json_str, errors="ignore")
+
+        json_str = re.sub(r"^```[a-zA-Z]*\n", "", json_str)
+        json_str = re.sub(r"\n```$", "", json_str)
+
+        json_str = json_str.strip()
+        json_str = re.sub(r'[\x00-\x1f\x7f]', '', json_str)
+
         try:
             return json.loads(json_str)
         except json.JSONDecodeError:
@@ -209,3 +219,10 @@ class Loader:
         df = df[~df['result'].isin(nan_values)]
 
         return df
+
+    def assess_match(self, string1, string2):
+        if self.matching_preprocessing(string1) == self.matching_preprocessing(string2): return True
+        else: return False
+
+    def matching_preprocessing(self, strinput):
+        return str(strinput).strip().lower()
